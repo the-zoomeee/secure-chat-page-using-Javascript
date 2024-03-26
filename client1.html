@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Client 1</title>
+<style>
+    body {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 100vh;
+        margin: 0;
+        padding: 0;
+        background-image: url(back.gif);
+        font-family: Arial, sans-serif;
+    }
+
+    #messages {
+        background-image: url(back.gif);
+        margin-bottom: auto;
+        padding: 10px;
+        overflow-y: auto; /* Make the message div scrollable */
+        max-height: calc(100vh - 90px);
+        height: 100vh;
+        flex: 1; /* Take up remaining space */
+        display: flex;
+        flex-direction: column-reverse; /* Change to reverse the order of messages */
+    }
+
+    .sent-message, .received-message {
+        max-width: 70%; /* Limit message width */
+        word-wrap: break-word; /* Break long words */
+    }
+
+    .sent-message {
+        background-color: rgb(105, 165, 105);
+        color: white;
+        padding: 5px;
+        margin-top: 5px; /* Changed to margin-top */
+        border-radius: 5px;
+        align-self: flex-end;
+    }
+
+    .received-message {
+        background-color: rgb(89, 167, 231);
+        color: white;
+        padding: 5px;
+        margin-top: 5px; /* Changed to margin-top */
+        border-radius: 5px;
+        align-self: flex-start;
+    }
+
+    .send {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        background-color: #f0f0f0;
+        border-top: 1px solid rgb(67, 67, 67);
+    }
+
+    .send input[type="text"] {
+        flex: 1;
+        margin-right: 10px;
+        padding: 8px;
+        border-radius: 20px;
+        border: 2px solid #007bff;
+        outline: none;
+        font-size: 16px;
+    }
+
+    .send button {
+        padding: 8px 15px;
+        border: none;
+        background-color: #007bff;
+        color: white;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 16px;
+    }
+</style>
+</head>
+<body>
+    <div id="messages"></div>
+    <div class="send">
+        <input type="text" id="messageInput" placeholder="Type your message">
+        <button id="sendButton">Send</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.1.0/jsencrypt.min.js"></script>
+    <script>
+        const socket = new WebSocket('ws://localhost:3000');
+
+
+
+        var publicKey = "-----BEGIN PUBLIC KEY-----\n" +
+        "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDEFkVxNvBVrUwLdGTlpTYF7o0p/yctY9FGmaeATc/rvcmAhfN90lUkJnxwmost7F8tP1SRwhOU4FBFHpFest2mI0XSz57qoTRp6f0qj+R5mUqDrcrARGfWs3zaFiUt63EL47gj9QNUsmEGR6LZbbTagLbD2utIV6ThRa+gCVXNzwIDAQAB\n" +
+        "-----END PUBLIC KEY-----";
+    
+        var privateKey = "-----BEGIN PRIVATE KEY-----\n" +
+        "MIICdwIBADANBgkqhkiG9w0BAQEFAASCAmEwggJdAgEAAoGBAMQWRXE28FWtTAt0ZOWlNgXujSn/Jy1j0UaZp4BNz+u9yYCF833SVSQmfHCaiy3sXy0/VJHCE5TgUEUekV6y3aYjRdLPnuqhNGnp/SqP5HmZSoOtysBEZ9azfNoWJS3rcQvjuCP1A1SyYQZHotlttNqAtsPa60hXpOFFr6AJVc3PAgMBAAECgYAIEcaPzyv6yqPrgMG6NZ9QhS2oAckR9B6joiUjgZBB6lCFin2nuuUoFLFgTOvXWvfbu9R2Hx+BK+4Bui1PUVsPras3sjlQp7iv0xuk8Pwdfa00XMF1zoS5cw1AOQxcoTBaRlhobN8+6VW27wfkqTm1cy8nyMlUQnyDju/s3iHz6QJBAPq69UQ14aH6UVRf1WYYk6Sjml20C5pAxbOeRFkFIljGhGNfmKL9aB8TTpcXrwYtBb06hpU5Tn76jn4sT5zZk7MCQQDINU6+GL57KQ2wJdLHKz98OiEI6lMWsOTJssz0N+aYviJABSGNeXZwgNqk+tI2U6fgYOfBLPz/CNwWD5/2Iv91AkEA3m1axf8ywjpJShuWOXNWDzlf6P6fSGFrwbOGmJ5YYP8DVRDqXLWHWAINtzY4e7cXH067M8hZ3YWzQTVYDyJpxwJAFGEQvdro8MJyCT8gYHOvh6anHDA1+vZQo5NWt3lFOMEJ3XhoPO1jN/p1xxtc8Hi9euKCVLCOpCszs+8tOjG/zQJBALWbM3hEKUTg1I49DDjn9iboqImAdI9HaD03oj+TBrc9nux3oWoN79mZ/CTqQii5Y9S2ycyQ+goTTOPoIFv7uv8=\n" +
+        "-----END PRIVATE KEY-----";
+
+        var crypt = new JSEncrypt();
+        crypt.setPublicKey(publicKey);
+        crypt.setPrivateKey(privateKey);
+
+        // Execute sendMessage function when Enter key is pressed in the input field
+        document.getElementById('messageInput').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Prevent default behavior (e.g., form submission)
+                sendMessage();
+            }
+        });
+
+        socket.onmessage = function(event) {
+            const receivedMessage = event.data;
+
+            var decrypted_message = crypt.decrypt(receivedMessage);
+            
+            const messagesContainer = document.getElementById('messages');
+            messagesContainer.innerHTML = `<h1 align="left" class="received-message">${decrypted_message}</h1>` + messagesContainer.innerHTML; // Add new message to the top
+            messagesContainer.scrollTop = 0; // Scroll to the top
+        };
+
+        function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value;
+
+            var encrypted_message = crypt.encrypt(message)
+
+            socket.send(encrypted_message);
+
+            const messagesContainer = document.getElementById('messages');
+            messagesContainer.innerHTML = `<h1 align="right" class="sent-message">${message}</h1>` + messagesContainer.innerHTML; // Add new message to the top
+            messagesContainer.scrollTop = 0; // Scroll to the top
+
+            messageInput.value = ''; // Clear input field
+        }
+
+        document.getElementById('sendButton').addEventListener('click', sendMessage); // Add click event listener to the Send button
+    </script>
+</body>
+</html>
